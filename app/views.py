@@ -1,7 +1,8 @@
-from . import app, USERS, models
+from . import app, USERS, models, POSTS
 from flask import request, Response
 import json
 from http import HTTPStatus
+import datetime
 
 
 @app.route('/')
@@ -53,9 +54,57 @@ def get_user(user_id):
     return response
 
 
-# todo: Создание поста POST /posts/create
-
 @app.post('/posts/create')
 def create_post():
     data = request.get_json()
-    id = len(USERS)
+    id = len(POSTS)
+    author_id = data["author_id"]
+    text = data["text"]
+    time = str(datetime.datetime.now())
+
+    if not models.Post.is_valid_text(text):
+        return Response(status=HTTPStatus.BAD_REQUEST)
+
+    if id < 0 or id >= len(USERS):
+        return Response(status=HTTPStatus.NOT_FOUND)
+
+    post = models.Post(id, author_id, text, time, total_reactions=0)
+    POSTS.append(post)
+
+    # находим пользователя по author_id
+    user = USERS[author_id]
+
+    # добавляем пост пользователю
+    user.create_post(post)
+
+    response = Response(
+        json.dumps({
+            'id': post.id,
+            'author_id': post.author_id,
+            'text': post.text,
+            'time': post.time,
+            'total_reactions': post.total_reactions,
+        }), HTTPStatus.OK, mimetype='application/json'
+    )
+    return response
+
+
+@app.get('/posts/<int:post_id>')
+def get_post(post_id):
+    if post_id < 0 or post_id >= len(POSTS):
+        return Response(status=HTTPStatus.NOT_FOUND)
+
+    post = POSTS[post_id]
+    response = Response(
+        json.dumps({
+            'id': post.id,
+            'author_id': post.author_id,
+            'text': post.text,
+            'time': post.time,
+            'total_reactions': post.total_reactions,
+            'reactions': post.reactions,
+        }), HTTPStatus.OK, mimetype='application/json'
+    )
+    return response
+
+# todo: Поставить реакцию посту POST /posts/<post_id>/reaction

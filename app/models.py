@@ -1,5 +1,6 @@
 # models.py
 import re
+from . import POSTS
 
 
 class User:
@@ -17,7 +18,32 @@ class User:
             return True
         else:
             return False
-    # todo: Создание поста POST /posts/create
-    def create_post(self):
-        post_number = len(self.posts)
+
+    def create_post(self, post):
+        new_post = dict()
+        new_post["id"] = post.id
+        new_post["author_id"] = post.author_id
+        new_post["text"] = post.text
+        new_post["time"] = post.time
+        new_post["total_reactions"] = post.total_reactions
+        new_post["reactions"] = post.reactions
+
+        self.posts.append(new_post) # или просто post.text
+
+class Post:
+    def __init__(self, id, author_id, text, time, total_reactions=0):
+        self.author_id = author_id
+        self.text = text
+        self.id = id
+        self.time = time
+        self.reactions = []
+        self.total_reactions = total_reactions
+    @staticmethod
+    def is_valid_text(text):
+        if text is None or len(text)<5:
+            return False
+        return True
+
+    # todo: reactions for the post (смайлики библиотека)
+
 
