@@ -1,4 +1,4 @@
-from . import app, USERS, models, POSTS
+from . import app, USERS, models
 from flask import request, Response
 import json
 from http import HTTPStatus
@@ -7,14 +7,13 @@ import datetime
 
 @app.route("/")
 def index():
-    return "<h1>hello world</h1>"
+    return "<h1>Hello, World!</h1>"
 
 
 @app.post("/users/create")
 def user_create():
     data = request.get_json()
-    # data уже dict
-    id = len(USERS)
+
     first_name = data["first_name"]
     last_name = data["last_name"]
     email = data["email"]
@@ -22,8 +21,10 @@ def user_create():
     if not models.User.is_valid_email(email):
         return Response(status=HTTPStatus.BAD_REQUEST)
 
-    user = models.User(id, first_name, last_name, email)
+    user_id = len(USERS)  # id for new user
+    user = models.User(user_id, first_name, last_name, email)
     USERS.append(user)
+
     response = Response(
         json.dumps(
             {
@@ -35,8 +36,8 @@ def user_create():
                 "posts": user.posts,
             }
         ),
-        HTTPStatus.OK,
-        mimetype="application/json",
+        status=HTTPStatus.OK,
+        mimetype="application/json"
     )
     return response
 
@@ -45,7 +46,10 @@ def user_create():
 def get_user(user_id):
     if not models.User.is_valid_id(user_id):
         return Response(status=HTTPStatus.BAD_REQUEST)
+
     user = USERS[user_id]
+    posts_as_dict = [post.post_to_dict(post) for post in user.posts]  # Преобразуем каждый пост в словарь
+
     response = Response(
         json.dumps(
             {
@@ -54,11 +58,11 @@ def get_user(user_id):
                 "last_name": user.last_name,
                 "email": user.email,
                 "total_reactions": user.total_reactions,
-                "posts": user.posts,
+                "posts": posts_as_dict,
             }
         ),
-        HTTPStatus.OK,
-        mimetype="application/json",
+        status=HTTPStatus.OK,
+        mimetype="application/json"
     )
     return response
 
@@ -66,64 +70,58 @@ def get_user(user_id):
 @app.post("/posts/create")
 def create_post():
     data = request.get_json()
-    post_id = len(POSTS)
     author_id = data["author_id"]
     text = data["text"]
-    time = str(datetime.datetime.now())
 
-    if not models.Post.is_valid_text(text):  # то есть is_valid не True
+    if not models.User.is_valid_id(author_id):
         return Response(status=HTTPStatus.BAD_REQUEST)
 
-    if not models.User.is_valid_id(author_id):  # means we do not have such user
+    if not models.Post.is_valid_text(text):
         return Response(status=HTTPStatus.BAD_REQUEST)
 
-    post = models.Post(post_id, author_id, text, time, total_reactions=0)
-    POSTS.append(post)
-
-    # находим пользователя по author_id
     user = USERS[author_id]
-
-    # добавляем пользователю ссылку на пост
-    user.create_post(post)
+    post = user.create_post(text)  # Создаем пост для пользователя с уникальным id
 
     response = Response(
         json.dumps(
             {
-                "id": post.id,
+                "id": post.id,  # Уникальный id на уровне всей системы
                 "author_id": post.author_id,
                 "text": post.text,
                 "time": post.time,
-                "reactions": post.reactions,
                 "total_reactions": post.total_reactions,
+                "reactions": post.reactions,
             }
         ),
-        HTTPStatus.OK,
-        mimetype="application/json",
+        status=HTTPStatus.OK,
+        mimetype="application/json"
     )
     return response
 
 
 @app.get("/posts/<int:post_id>")
 def get_post(post_id):
-    if not models.Post.is_valid_id(post_id):
-        return Response(status=HTTPStatus.BAD_REQUEST)
+    for user in USERS:
+        post = user.get_post(post_id)
+        if post:
+            response = Response(
+                json.dumps(post.post_to_dict(post)),  # Преобразуем объект Post в словарь перед сериализацией в JSON
 
-    post = POSTS[post_id]
-    response = Response(
-        json.dumps(
-            {
-                "id": post.id,
-                "author_id": post.author_id,
-                "text": post.text,
-                "time": post.time,
-                "reactions": post.reactions,
-                "total_reactions": post.total_reactions,
-            }
-        ),
-        HTTPStatus.OK,
-        mimetype="application/json",
-    )
-    return response
+                # json.dumps(
+                #     {
+                #         "id": post.id,
+                #         "author_id": post.author_id,
+                #         "text": post.text,
+                #         "time": post.time,
+                #         "total_reactions": post.total_reactions,
+                #         "reactions": post.reactions,
+                #     }
+                #),
+                status=HTTPStatus.OK,
+                mimetype="application/json"
+            )
+            return response
+    return Response(status=HTTPStatus.NOT_FOUND)
 
 
 @app.post("/posts/<int:post_id>/reaction")
@@ -132,10 +130,6 @@ def create_reaction(post_id):
     user_id = data["user_id"]  # expect int
     reaction_str = data["reaction"]  # expect str
 
-
-    if not models.Post.is_valid_id(post_id):
-        return Response(status=HTTPStatus.BAD_REQUEST)
-
     if not models.User.is_valid_id(user_id):
         return Response(status=HTTPStatus.BAD_REQUEST)
 
@@ -143,27 +137,28 @@ def create_reaction(post_id):
         return Response(status=HTTPStatus.BAD_REQUEST)
 
 
-    post = POSTS[post_id]
+    # todo: change reaction if user send second request (firstly delete
+    #  and then can send the next reaction request)
 
-    # check if one user can have only one reaction
-    for existing_reaction in post.reactions:
-        if existing_reaction["user_id"] == user_id:
-            return Response(
-                status=HTTPStatus.CONFLICT,
-                response=json.dumps({"error": "User has already reacted to this post"}),
-                mimetype='application/json')
+    for user in USERS:
+        post = user.get_post(post_id)
+        if post:
+            # Проверка, оставил ли пользователь уже реакцию
+            for existing_reaction in post.reactions:
+                if existing_reaction.user_id == user_id:
+                    # Удаляем старую реакцию
+                    post.reactions.remove(existing_reaction)
+                    post.total_reactions -= 1  # Уменьшаем общее количество реакций на 1
+                    break  # Выходим из цикла, чтобы добавить новую реакцию
 
+            post_reaction = models.Reaction(user_id, reaction_str)
+            post.add_reaction(post_reaction)
 
-    user = USERS[user_id]
+            post.raise_total_reactions()  # Увеличиваем количество реакций для поста
 
-    post_reaction = models.Reaction(user_id, reaction_str)
-    post.add_reaction(post_reaction)
+            # Обновляем total_reactions только для пользователя
+            user.update_total_reactions()  # Обновляем общее количество реакций для пользователя
 
-    post.raise_total_reactions()  # someone's post received reaction
-    user.raise_total_reactions()  # sb who added reaction
+            return Response(status=HTTPStatus.OK)
 
-    return Response(status=HTTPStatus.OK)
-
-
-
-# todo: Получение всех постов пользователя, отсортированных по количеству реакций GET /users/<user_id>/posts
+    return Response(status=HTTPStatus.NOT_FOUND)
