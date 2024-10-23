@@ -9,7 +9,7 @@ class User:
         self.first_name = first_name
         self.last_name = last_name
         self.email = email
-        self.total_reactions = total_reactions # todo: sum of reactions for all user's posts пока что сколько оставил сам
+        self.total_reactions = total_reactions  # todo: sum of reactions for all user's posts пока что сколько оставил сам
         self.posts = []  # Храним посты внутри пользователя
 
     @staticmethod
@@ -20,7 +20,7 @@ class User:
             return False
 
     def create_post(self, text):
-        global POST_COUNTER # todo: delete text global
+        global POST_COUNTER  # todo: delete text global
         post_id = POST_COUNTER  # Используем глобальный счетчик для уникальных id
         POST_COUNTER += 1  # Увеличиваем глобальный счетчик для следующего поста
 
@@ -58,7 +58,7 @@ class Post:
         self.text = text
         self.time = time
         self.reactions = []
-        self.total_reactions = total_reactions # total react for this post
+        self.total_reactions = total_reactions  # total react for this post
 
     @staticmethod
     def is_valid_text(text):
@@ -68,7 +68,7 @@ class Post:
 
     def add_reaction(self, reaction):
         if isinstance(reaction, Reaction):
-            self.reactions.append(reaction) # (reaction.react_to_dict())
+            self.reactions.append(reaction)  # (reaction.react_to_dict())
 
     def raise_total_reactions(self):
         self.total_reactions += 1
@@ -80,13 +80,24 @@ class Post:
             "author_id": post.author_id,
             "text": post.text,
             "time": post.time,
-            "reactions": [reaction.react_to_dict() for reaction in post.reactions],  # Преобразуем в словари
+            "reactions": [
+                reaction.react_to_dict() for reaction in post.reactions
+            ],  # Преобразуем в словари
             "total_reactions": post.total_reactions,
         }
 
 
 class Reaction:
-    ALLOWED_REACTIONS = ["like", "heart", "haha", "wow", "sad", "angry", "dislike", "boom"]
+    ALLOWED_REACTIONS = [
+        "like",
+        "heart",
+        "haha",
+        "wow",
+        "sad",
+        "angry",
+        "dislike",
+        "boom",
+    ]
 
     def __init__(self, user_id, reaction):
         self.user_id = user_id
@@ -99,7 +110,4 @@ class Reaction:
         return False
 
     def react_to_dict(self):
-        return {
-            "user_id": self.user_id,
-            "reaction": self.reaction
-        }
+        return {"user_id": self.user_id, "reaction": self.reaction}

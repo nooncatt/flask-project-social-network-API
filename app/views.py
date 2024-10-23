@@ -37,7 +37,7 @@ def user_create():
             }
         ),
         status=HTTPStatus.OK,
-        mimetype="application/json"
+        mimetype="application/json",
     )
     return response
 
@@ -48,7 +48,9 @@ def get_user(user_id):
         return Response(status=HTTPStatus.BAD_REQUEST)
 
     user = USERS[user_id]
-    posts_as_dict = [post.post_to_dict(post) for post in user.posts]  # Преобразуем каждый пост в словарь
+    posts_as_dict = [
+        post.post_to_dict(post) for post in user.posts
+    ]  # Преобразуем каждый пост в словарь
 
     response = Response(
         json.dumps(
@@ -62,7 +64,7 @@ def get_user(user_id):
             }
         ),
         status=HTTPStatus.OK,
-        mimetype="application/json"
+        mimetype="application/json",
     )
     return response
 
@@ -94,7 +96,7 @@ def create_post():
             }
         ),
         status=HTTPStatus.OK,
-        mimetype="application/json"
+        mimetype="application/json",
     )
     return response
 
@@ -105,8 +107,9 @@ def get_post(post_id):
         post = user.get_post(post_id)
         if post:
             response = Response(
-                json.dumps(post.post_to_dict(post)),  # Преобразуем объект Post в словарь перед сериализацией в JSON
-
+                json.dumps(
+                    post.post_to_dict(post)
+                ),  # Преобразуем объект Post в словарь перед сериализацией в JSON
                 # json.dumps(
                 #     {
                 #         "id": post.id,
@@ -116,9 +119,9 @@ def get_post(post_id):
                 #         "total_reactions": post.total_reactions,
                 #         "reactions": post.reactions,
                 #     }
-                #),
+                # ),
                 status=HTTPStatus.OK,
-                mimetype="application/json"
+                mimetype="application/json",
             )
             return response
     return Response(status=HTTPStatus.NOT_FOUND)
@@ -135,7 +138,6 @@ def create_reaction(post_id):
 
     if not models.Reaction.is_valid_reaction(reaction_str):
         return Response(status=HTTPStatus.BAD_REQUEST)
-
 
     # todo: change reaction if user send second request (firstly delete
     #  and then can send the next reaction request)
