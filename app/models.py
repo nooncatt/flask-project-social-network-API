@@ -1,6 +1,6 @@
 import re
-from . import USERS, POST_COUNTER
 import datetime
+from . import USERS, POST_COUNTER  # Глобальная переменная доступна из __init__.py
 
 
 class User:
